@@ -1,4 +1,7 @@
+use std::process::{Command, exit};
+
 use clap::{ArgGroup, Parser};
+use rustyline::DefaultEditor;
 
 static DB_PATH: &str = "stoac-db";
 
@@ -102,7 +105,9 @@ fn print_command(tag: &str) {
   });
 
   if let Some(exact_val) = exact_result {
-    println!("{}", String::from_utf8(exact_val.to_vec()).unwrap());
+    let command = String::from_utf8(exact_val.to_vec()).unwrap();
+    println!("Command for '{}' (Press enter to execute or Ctrl+C to abort)", tag);
+    user_edit_mode(&command);
     return;
   }
 
@@ -129,6 +134,25 @@ fn print_command(tag: &str) {
       eprintln!("Error while fetching entries from db: {}", e);
     }
   }
+}
+
+
+fn user_edit_mode(initial_command: &str) {
+  let mut rl = DefaultEditor::new().unwrap();
+  let input = rl.readline_with_initial("", (initial_command, "")).unwrap_or_else(|_| {
+    println!("Aborted.");
+    std::process::exit(0);
+  });
+
+  println!("-----");
+
+  let status = Command::new("sh")
+    .arg("-c")
+    .arg(input)
+    .status()
+    .expect("Failed to spawn command");
+
+    exit(status.code().unwrap_or(1));   
 }
 
 
