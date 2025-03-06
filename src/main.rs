@@ -1,3 +1,4 @@
+use std::process::Command;
 use clap::{ArgGroup, Parser};
 
 static DB_PATH: &str = "stoac-db";
@@ -10,14 +11,20 @@ static DB_PATH: &str = "stoac-db";
 )]
 #[command(group(
   ArgGroup::new("required")
-  .args(&["store", "load"])
+  .args(&["store", "load", "print"])
   .required(true)
 ))]
 #[command(group(
-  ArgGroup::new("index_or_text")
-    .args(&["index_store", "text_store"])
+  ArgGroup::new("text_group")
+    .args(&["text_store"])
     .multiple(false)
     .requires("store") // this does not do anything for some reason
+))]
+#[command(group(
+  ArgGroup::new("print_group")
+    .args(&["print"])
+    .multiple(false)
+    .requires("load") // this does not do anything for some reason
 ))]
 struct Args {
   #[arg(
@@ -39,10 +46,9 @@ struct Args {
   #[arg(
     short,
     long,
-    value_name="INDEX",
-    help="Will store the command from the history with a given index (0 -> last command, 1 -> command before last command)"
+    help="Prints the content of the database into the shell"
   )]
-  index_store: Option<u32>,
+  print: bool,
 
   #[arg(
     short,
@@ -57,11 +63,21 @@ struct Args {
 fn main() {
   let args = Args::parse();
 
+  if args.print {
+    print_db();
+    return;
+  }
 
+  // loading flow
+  if args.load.is_some() {
+    if args.text_store.is_some() {
+      eprintln!("[WARNING]: Additional arguments are ignored when loading a command");
+    }
+  }
 }
 
 
-fn store_last_command(tag: &str, command: &str) {
+fn store_command(tag: &str, command: &str) {
   let db: sled::Db = sled::open(DB_PATH).unwrap();
 
   db.insert(tag, command).unwrap();
