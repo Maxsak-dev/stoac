@@ -1,4 +1,5 @@
-use std::process::Command;
+use std::os::unix::process;
+
 use clap::{ArgGroup, Parser};
 
 static DB_PATH: &str = "stoac-db";
@@ -73,6 +74,10 @@ fn main() {
     if args.text_store.is_some() {
       eprintln!("[WARNING]: Additional arguments are ignored when loading a command");
     }
+    print_command(&args.load.unwrap());
+  }
+
+  if args.store.is_some() {
   }
 }
 
@@ -82,6 +87,45 @@ fn store_command(tag: &str, command: &str) {
 
   db.insert(tag, command).unwrap();
   db.flush().unwrap();
+}
+
+
+fn print_command(tag: &str) {
+  let db: sled::Db = sled::open(DB_PATH).unwrap();
+
+  let exact_result = db.get(tag).unwrap_or_else(|e| {
+    eprint!("Error communicating with the database ({})", e);
+    std::process::exit(-1);
+  });
+
+  if let Some(exact_val) = exact_result {
+    println!("{}", String::from_utf8(exact_val.to_vec()).unwrap());
+    return;
+  }
+
+  let tag_bytes = tag.as_bytes();
+  let mut upper_bound = tag_bytes.to_vec();
+  if let Some(last_byte) = upper_bound.last_mut() {
+    *last_byte += 1;
+  }
+  let tag_bound_bytes = upper_bound.as_slice();
+
+  let similar_results = db.range(tag_bytes..tag_bound_bytes).collect::<Result<Vec<_>, _>>();
+
+  match similar_results {
+    Ok(entries) if !entries.is_empty() => {
+      eprintln!("No valid commands found, did you mean:");
+      for (key, _) in entries {
+        eprint!("{}\n", String::from_utf8(key.to_vec()).unwrap());
+      }
+    }
+    Ok(_) => {
+      eprintln!("No valid commands found");
+    }
+    Err(e) => {
+      eprintln!("Error while fetching entries from db: {}", e);
+    }
+  }
 }
 
 
