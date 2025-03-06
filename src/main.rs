@@ -1,5 +1,3 @@
-use std::os::unix::process;
-
 use clap::{ArgGroup, Parser};
 
 static DB_PATH: &str = "stoac-db";
@@ -78,6 +76,11 @@ fn main() {
   }
 
   if args.store.is_some() {
+    if args.text_store.is_none() {
+      eprintln!("No command to store specified");
+      std::process::exit(-1);
+    }
+    store_command(&args.store.unwrap(), &args.text_store.unwrap());
   }
 }
 
