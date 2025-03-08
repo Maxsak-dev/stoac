@@ -1,5 +1,9 @@
-use std::process::{Command, exit};
-
+use std::process::{exit, Command};
+use std::fs::File;
+use std::io::{self, BufRead};
+use std::path::PathBuf;
+use std::env;
+use dirs;
 use clap::{ArgGroup, Parser};
 use rustyline::DefaultEditor;
 
@@ -17,8 +21,8 @@ static DB_PATH: &str = "stoac-db";
   .required(true)
 ))]
 #[command(group(
-  ArgGroup::new("text_group")
-    .args(&["text_store"])
+  ArgGroup::new("text_index_group")
+    .args(&["text_store", "index_store"])
     .multiple(false)
     .requires("store") // this does not do anything for some reason
 ))]
@@ -59,6 +63,13 @@ struct Args {
     help="Will store a custom command from text. Make sure to encapsulate it in quotes"
   )]
   text_store: Option<String>,
+  #[arg(
+    short,
+    long,
+    value_name="INDEX",
+    help="Will store a command from the history of your shell at the specified index"
+  )]
+  index_store: Option<usize>,
 }
 
 
@@ -79,11 +90,15 @@ fn main() {
   }
 
   if args.store.is_some() {
-    if args.text_store.is_none() {
-      eprintln!("No command to store specified");
+    if args.text_store.is_some() {
+      store_command(&args.store.unwrap(), &args.text_store.unwrap());
+    } else if args.index_store.is_some() {
+      let command = get_command_from_history(args.index_store.unwrap());
+      store_command(&args.store.unwrap(), &command);
+    } else {
+      eprintln!("Specified nothing to store");
       std::process::exit(-1);
     }
-    store_command(&args.store.unwrap(), &args.text_store.unwrap());
   }
 }
 
@@ -164,4 +179,60 @@ fn print_db() {
     println!("Key: {}, Value: {}", String::from_utf8(key.to_vec()).unwrap(), String::from_utf8(value.to_vec()).unwrap());
   }
 }
+
+
+fn get_command_from_history(line_num: usize) -> String {
+  if env::var("BASH_VERSION").is_ok() {
+    return get_bash_command(line_num);
+  } else if env::var("ZSH_VERSION").is_ok() {
+    return get_zsh_command(line_num);
+  } else {
+    println!("The program was not started from Bash or Zsh. Other shells are currently not supported");
+    std::process::exit(1);
+  }
+}
+
+
+fn get_line_from_file(line_num: usize, file_path: &str) -> String {
+  let home_dir = dirs::home_dir().expect("Could not find home directory");
+
+  let mut history_path = PathBuf::from(home_dir);
+  history_path.push(file_path);
+
+  let file = File::open(history_path).unwrap_or_else(|_| {
+    println!("Could not open .bash_history");
+    std::process::exit(1);
+  });
+
+  let reader = io::BufReader::new(file);
+
+  for (index, line) in reader.lines().enumerate() {
+    if index != line_num { continue; }
+
+    if index == line_num {
+      let str_line = line.expect("Could not read line");
+      return str_line;
+    }
+  }
+
+  println!("Could not find history index {}", line_num);
+  std::process::exit(1);
+}
+
+
+fn get_zsh_command(line_num: usize) -> String {
+  let history_line = get_line_from_file(line_num, ".zsh_history");
+
+  if let Some(pos) = history_line.find(";") {
+    return history_line[pos + 1..].to_string();
+  } else {
+    return "".to_string();
+  }
+}
+
+
+fn get_bash_command(line_num: usize) -> String {
+  return get_line_from_file(line_num, ".bash_history");
+}
+
 
