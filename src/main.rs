@@ -104,9 +104,12 @@ fn main() {
 
 
 fn store_command(tag: &str, command: &str) {
+  println!("Storing command for '{}' (Press enter to store or Ctrl+C to abort)", tag);
+  let edited_command = user_edit_mode(command);
+
   let db: sled::Db = sled::open(DB_PATH).unwrap();
 
-  db.insert(tag, command).unwrap();
+  db.insert(tag, edited_command.as_bytes()).unwrap();
   db.flush().unwrap();
 }
 
@@ -122,7 +125,7 @@ fn print_command(tag: &str) {
   if let Some(exact_val) = exact_result {
     let command = String::from_utf8(exact_val.to_vec()).unwrap();
     println!("Command for '{}' (Press enter to execute or Ctrl+C to abort)", tag);
-    user_edit_mode(&command);
+    execute_command(&command);
     return;
   }
 
@@ -152,18 +155,25 @@ fn print_command(tag: &str) {
 }
 
 
-fn user_edit_mode(initial_command: &str) {
+fn user_edit_mode(initial_command: &str) -> String {
   let mut rl = DefaultEditor::new().unwrap();
   let input = rl.readline_with_initial("", (initial_command, "")).unwrap_or_else(|_| {
     println!("Aborted.");
     std::process::exit(0);
   });
 
+  return input;
+}
+
+
+fn execute_command(initial_command: &str) {
+  let edited_command = user_edit_mode(initial_command);
+
   println!("-----");
 
   let status = Command::new("sh")
     .arg("-c")
-    .arg(input)
+    .arg(edited_command)
     .status()
     .expect("Failed to spawn command");
 
@@ -234,5 +244,3 @@ fn get_zsh_command(line_num: usize) -> String {
 fn get_bash_command(line_num: usize) -> String {
   return get_line_from_file(line_num, ".bash_history");
 }
-
-
