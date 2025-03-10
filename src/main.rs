@@ -6,6 +6,7 @@ use std::env;
 use dirs;
 use clap::{ArgGroup, Parser};
 use rustyline::DefaultEditor;
+use regex::Regex;
 
 static DB_PATH: &str = "stoac-db";
 
@@ -21,7 +22,7 @@ static DB_PATH: &str = "stoac-db";
   .required(true)
 ))]
 #[command(group(
-  ArgGroup::new("text_index_group")
+  ArgGroup::new("store_group")
     .args(&["text_store", "index_store"])
     .multiple(false)
     .requires("store") // this does not do anything for some reason
@@ -70,6 +71,12 @@ struct Args {
     help="Will store a command from the history of your shell at the specified index"
   )]
   index_store: Option<usize>,
+  #[arg(
+    long,
+    value_name="bash | zsh",
+    help="Overrides the shells history to be used (only applicable when storing by index)."
+  )]
+  shell: Option<String>,
 }
 
 
@@ -93,7 +100,8 @@ fn main() {
     if args.text_store.is_some() {
       store_command(&args.store.unwrap(), &args.text_store.unwrap());
     } else if args.index_store.is_some() {
-      let command = get_command_from_history(args.index_store.unwrap());
+      let shell_hint = args.shell.unwrap_or("".to_string());
+      let command = get_command_from_history(args.index_store.unwrap(), shell_hint);
       store_command(&args.store.unwrap(), &command);
     } else {
       eprintln!("Specified nothing to store");
@@ -191,15 +199,41 @@ fn print_db() {
 }
 
 
-fn get_command_from_history(line_num: usize) -> String {
-  if env::var("BASH_VERSION").is_ok() {
+fn get_command_from_history(line_num: usize, shell_hint: String) -> String {
+  if shell_hint.to_ascii_lowercase() == "bash" {
     return get_bash_command(line_num);
-  } else if env::var("ZSH_VERSION").is_ok() {
+  } else if shell_hint.to_ascii_lowercase() == "zsh" {
     return get_zsh_command(line_num);
+  } else if shell_hint == "" {
   } else {
-    println!("The program was not started from Bash or Zsh. Other shells are currently not supported");
+    println!("Provided unsupported shell hint flag ({}). Aborting.", shell_hint);
     std::process::exit(1);
   }
+
+  let shell_var = env::var("SHELL");
+  if shell_var.is_err() {
+    println!("SHELL environment variable not set. Please set it or specify your shell using the flag");
+    std::process::exit(1);
+  }
+
+  let shell_str = shell_var.unwrap();
+
+  let zsh_pattern = r"zsh";
+  let zsh_re = Regex::new(zsh_pattern).unwrap();
+
+  if zsh_re.is_match(&shell_str) {
+    return get_zsh_command(line_num);
+  }
+
+  let bash_pattern = r"bash";
+  let bash_re = Regex::new(bash_pattern).unwrap();
+
+  if bash_re.is_match(&shell_str) {
+    return get_bash_command(line_num);
+  }
+
+  println!("The program was not started from Bash or Zsh. Other shells are currently not supported");
+  std::process::exit(1);
 }
 
 
@@ -217,9 +251,9 @@ fn get_line_from_file(line_num: usize, file_path: &str) -> String {
   let reader = io::BufReader::new(file);
 
   for (index, line) in reader.lines().enumerate() {
-    if index != line_num { continue; }
+    if index + 1 != line_num { continue; }
 
-    if index == line_num {
+    if index + 1 == line_num {
       let str_line = line.expect("Could not read line");
       return str_line;
     }
