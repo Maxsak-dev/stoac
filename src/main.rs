@@ -21,7 +21,7 @@ use regex::Regex;
 ))]
 #[command(group(
   ArgGroup::new("store_group")
-    .args(&["text_store", "index_store"])
+    .args(&["text_store", "index_store", "interactive_store"])
     .multiple(false)
     .requires("store") // this does not do anything for some reason
 ))]
@@ -67,12 +67,19 @@ struct Args {
     short,
     long,
     value_name="COMMAND",
-    help="Will store a custom command from text. Make sure to encapsulate it in quotes"
+    help="Will store a custom command from text. Make sure to encapsulate it in quotes and escape necessary quotes"
   )]
   text_store: Option<String>,
 
   #[arg(
     short,
+    long,
+    help="Will store a custom command from from an interactive text field"
+  )]
+  interactive_store: bool,
+
+  #[arg(
+    short='x',
     long,
     value_name="INDEX",
     help="Will store a command from the history of your shell at the specified index"
@@ -82,7 +89,7 @@ struct Args {
   #[arg(
     long,
     value_name="bash | zsh",
-    help="Overrides the shells history to be used (only applicable when storing by index)."
+    help="Overrides the shells history to be used (only applicable when storing by index)"
   )]
   shell: Option<String>,
 }
@@ -97,7 +104,7 @@ fn main() {
   }
 
   if args.load.is_some() {
-    if args.text_store.is_some() || args.index_store.is_some() || args.shell.is_some() {
+    if args.text_store.is_some() || args.index_store.is_some() || args.shell.is_some() || args.interactive_store {
       eprintln!("[WARNING]: Additional arguments are ignored when loading a command");
     }
     print_command(&args.load.unwrap());
@@ -111,7 +118,9 @@ fn main() {
   }
 
   if args.store.is_some() {
-    if args.text_store.is_some() {
+    if args.interactive_store {
+      store_command(&args.store.unwrap(), "");
+    } else if args.text_store.is_some() {
       store_command(&args.store.unwrap(), &args.text_store.unwrap());
     } else if args.index_store.is_some() {
       let shell_hint = args.shell.unwrap_or("".to_string());
