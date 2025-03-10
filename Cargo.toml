@@ -2,6 +2,14 @@
 name = "stoac"
 version = "0.1.0"
 edition = "2021"
+authors = ["Maximilian Wlasak requests@maxsak.com"]
+license = "MIT"
+description = "A cli tool to help you organize small shell commands"
+readme = "README.md"
+homepage = "https://github.com/Maxsak-dev/stoac"
+repository = "https://github.com/Maxsak-dev/stoac"
+keywords = ["cli", "organization"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 clap = { version = "4.5.31", features = ["derive"] }
