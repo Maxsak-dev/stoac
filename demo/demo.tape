@@ -25,7 +25,23 @@ Sleep 2s
 
 Enter
 
+Sleep 3s
+
+Type 'stoac -s test -i'
+
 Sleep 2s
+
+Enter
+
+Sleep 2s
+
+Type `echo "I am a test"`
+
+Sleep 2s
+
+Enter
+
+Sleep 3s
 
 Type "stoac -p" Enter
 
