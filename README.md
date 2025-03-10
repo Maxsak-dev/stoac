@@ -25,6 +25,8 @@ fill the needed paths and execute the command! Done!
 
 A general overview of the usage can be found in the following video:
 
+![Usage Gif](demo/demo.gif)
+
 ## Alternatives
 
 This program serves a very general purpose which can also be achieved with a multitude of other tools. 
