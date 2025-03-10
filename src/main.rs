@@ -1,14 +1,12 @@
 use std::process::Command;
 use std::fs::File;
 use std::io::{self, BufRead};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::env;
 use dirs;
 use clap::{ArgGroup, Parser};
 use rustyline::DefaultEditor;
 use regex::Regex;
-
-static DB_PATH: &str = "stoac-db";
 
 #[derive(Parser, Debug)]
 #[command(
@@ -131,7 +129,7 @@ fn store_command(tag: &str, command: &str) {
   println!("Storing command for '{}' (Press enter to store or Ctrl+C to abort)", tag);
   let edited_command = user_edit_mode(command);
 
-  let db: sled::Db = sled::open(DB_PATH).unwrap();
+  let db: sled::Db = sled::open(get_db_path()).unwrap();
 
   db.insert(tag, edited_command.as_bytes()).unwrap();
   db.flush().unwrap();
@@ -139,7 +137,10 @@ fn store_command(tag: &str, command: &str) {
 
 
 fn delete_command(tag: &str) {
-  let db: sled::Db = sled::open(DB_PATH).unwrap();
+  let db: sled::Db = sled::open(get_db_path()).unwrap_or_else(|_| {
+    eprint!("Error opening the database. Make sure it exists by storing at least one command");
+    std::process::exit(-1);
+  });
 
   if let Err(_) = db.remove(tag) {
     println!("Could not delete command for {}", tag);
@@ -150,7 +151,10 @@ fn delete_command(tag: &str) {
 
 
 fn print_command(tag: &str) {
-  let db: sled::Db = sled::open(DB_PATH).unwrap();
+  let db: sled::Db = sled::open(get_db_path()).unwrap_or_else(|_| {
+    eprint!("Error opening the database. Make sure it exists by storing at least one command");
+    std::process::exit(-1);
+  });
 
   let exact_result = db.get(tag).unwrap_or_else(|e| {
     eprint!("Error communicating with the database ({})", e);
@@ -190,6 +194,24 @@ fn print_command(tag: &str) {
 }
 
 
+fn get_db_path() -> PathBuf {
+  let path_end = Path::new("stoac/db");
+
+
+  if let Ok(xdg_config_home) = env::var("XDG_CONFIG_HOME") {
+    return PathBuf::from(xdg_config_home).join(path_end);
+  }
+
+  if let Ok(home) = env::var("HOME") {
+    let config_path = PathBuf::from(home).join(".config").join(path_end);
+    return config_path;
+  }
+
+  println!("Could not open config paths (Check that either XDG_CONFIG_HOME or HOME environment variable is set");
+  std::process::exit(-1);
+}
+
+
 fn user_edit_mode(initial_command: &str) -> String {
   let mut rl = DefaultEditor::new().unwrap();
   let input = rl.readline_with_initial("", (initial_command, "")).unwrap_or_else(|_| {
@@ -217,7 +239,10 @@ fn execute_command(initial_command: &str) {
 
 
 fn print_db() {
-  let db: sled::Db = sled::open(DB_PATH).unwrap();
+  let db: sled::Db = sled::open(get_db_path()).unwrap_or_else(|_| {
+    eprint!("Error opening the database. Make sure it exists by storing at least one command");
+    std::process::exit(-1);
+  });
 
   for entry in db.iter() {
     let (key, value) = entry.unwrap();
