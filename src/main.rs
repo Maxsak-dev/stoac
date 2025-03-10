@@ -1,4 +1,4 @@
-use std::process::{exit, Command};
+use std::process::Command;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::path::PathBuf;
@@ -18,7 +18,7 @@ static DB_PATH: &str = "stoac-db";
 )]
 #[command(group(
   ArgGroup::new("required")
-  .args(&["store", "load", "print"])
+  .args(&["store", "load", "print", "delete"])
   .required(true)
 ))]
 #[command(group(
@@ -38,7 +38,7 @@ struct Args {
     short,
     long,
     value_name="TAG",
-    help="Loads a command at a given tag if specified"
+    help="Loads a command at a given tag if it exists"
   )]
   load: Option<String>,
 
@@ -46,9 +46,17 @@ struct Args {
     short,
     long,
     value_name="TAG",
-    help="Stores a command to a given tag if specified"
+    help="Stores a command to a given tag"
   )]
   store: Option<String>,
+
+  #[arg(
+    short,
+    long,
+    value_name="TAG",
+    help="Deletes a specified command by tag if it exists"
+  )]
+  delete: Option<String>,
 
   #[arg(
     short,
@@ -64,6 +72,7 @@ struct Args {
     help="Will store a custom command from text. Make sure to encapsulate it in quotes"
   )]
   text_store: Option<String>,
+
   #[arg(
     short,
     long,
@@ -71,6 +80,7 @@ struct Args {
     help="Will store a command from the history of your shell at the specified index"
   )]
   index_store: Option<usize>,
+
   #[arg(
     long,
     value_name="bash | zsh",
@@ -88,12 +98,18 @@ fn main() {
     return;
   }
 
-  // loading flow
   if args.load.is_some() {
-    if args.text_store.is_some() {
+    if args.text_store.is_some() || args.index_store.is_some() || args.shell.is_some() {
       eprintln!("[WARNING]: Additional arguments are ignored when loading a command");
     }
     print_command(&args.load.unwrap());
+    return;
+  }
+
+  if args.delete.is_some() {
+    let tag = args.delete.unwrap();
+    delete_command(&tag);
+    return;
   }
 
   if args.store.is_some() {
@@ -119,6 +135,17 @@ fn store_command(tag: &str, command: &str) {
 
   db.insert(tag, edited_command.as_bytes()).unwrap();
   db.flush().unwrap();
+}
+
+
+fn delete_command(tag: &str) {
+  let db: sled::Db = sled::open(DB_PATH).unwrap();
+
+  if let Err(_) = db.remove(tag) {
+    println!("Could not delete command for {}", tag);
+  } else {
+    println!("Successfully deleted command for {}", tag);
+  }
 }
 
 
@@ -154,7 +181,7 @@ fn print_command(tag: &str) {
       }
     }
     Ok(_) => {
-      eprintln!("No valid commands found");
+      eprintln!("No valid commands found for {}", tag);
     }
     Err(e) => {
       eprintln!("Error while fetching entries from db: {}", e);
@@ -185,7 +212,7 @@ fn execute_command(initial_command: &str) {
     .status()
     .expect("Failed to spawn command");
 
-    exit(status.code().unwrap_or(1));   
+  std::process::exit(status.code().unwrap_or(1));   
 }
 
 
@@ -194,7 +221,7 @@ fn print_db() {
 
   for entry in db.iter() {
     let (key, value) = entry.unwrap();
-    println!("Key: {}, Value: {}", String::from_utf8(key.to_vec()).unwrap(), String::from_utf8(value.to_vec()).unwrap());
+    println!("Tag: {}, Command: {}", String::from_utf8(key.to_vec()).unwrap(), String::from_utf8(value.to_vec()).unwrap());
   }
 }
 
