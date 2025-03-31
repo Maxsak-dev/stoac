@@ -27,7 +27,7 @@ use regex::Regex;
 ))]
 #[command(group(
   ArgGroup::new("print_group")
-    .args(&["print"])
+    .args(&["print_output"])
     .multiple(false)
     .requires("load") // this does not do anything for some reason
 ))]
@@ -57,8 +57,7 @@ struct Args {
   delete: Option<String>,
 
   #[arg(
-    short,
-    long,
+    long="print",
     help="Prints the content of the database into the shell"
   )]
   print: bool,
@@ -70,6 +69,13 @@ struct Args {
     help="Will store a custom command from text. Make sure to encapsulate it in quotes and escape necessary quotes"
   )]
   text_store: Option<String>,
+
+  #[arg(
+    short,
+    long,
+    help="Will print the command to execute to stdout instead of using the interactive mode (useful for shell integration)"
+  )]
+  print_output: bool,
 
   #[arg(
     short,
@@ -107,7 +113,12 @@ fn main() {
     if args.text_store.is_some() || args.index_store.is_some() || args.shell.is_some() || args.interactive_store {
       eprintln!("[WARNING]: Additional arguments are ignored when loading a command");
     }
-    print_command(&args.load.unwrap());
+    if args.print_output {
+      print_command(&args.load.unwrap(), true);
+    }
+    else {
+      print_command(&args.load.unwrap(), false);
+    }
     return;
   }
 
@@ -159,7 +170,7 @@ fn delete_command(tag: &str) {
 }
 
 
-fn print_command(tag: &str) {
+fn print_command(tag: &str, print_only: bool) {
   let db: sled::Db = sled::open(get_db_path()).unwrap_or_else(|_| {
     eprint!("Error opening the database. Make sure it exists by storing at least one command");
     std::process::exit(-1);
@@ -172,8 +183,13 @@ fn print_command(tag: &str) {
 
   if let Some(exact_val) = exact_result {
     let command = String::from_utf8(exact_val.to_vec()).unwrap();
-    println!("Command for '{}' (Press enter to execute or Ctrl+C to abort)", tag);
-    execute_command(&command);
+    if print_only {
+      println!("{}", command);
+    }
+    else {
+      println!("Command for '{}' (Press enter to execute or Ctrl+C to abort)", tag);
+      execute_command(&command);
+    }
     return;
   }
 
@@ -200,6 +216,8 @@ fn print_command(tag: &str) {
       eprintln!("Error while fetching entries from db: {}", e);
     }
   }
+
+  std::process::exit(-1);
 }
 
 
