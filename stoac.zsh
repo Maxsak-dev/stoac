@@ -1,3 +1,5 @@
+# stoac.plugin.zsh
+
 stoac_widget() {
   local user_input="$BUFFER"
   local output
@@ -7,7 +9,7 @@ stoac_widget() {
   RBUFFER=""
   zle reset-prompt
 
-  output=$(stoac -l "$user_input" -p)
+  output=$($program -l "$user_input" -p)
 
   # Check the exit status of the command
   if [[ $? -ne 0 ]]; then
