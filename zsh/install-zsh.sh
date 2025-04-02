@@ -9,7 +9,7 @@ else
     echo "$CONFIG_DIR already exists."
 fi
 
-FILE_URL="https://github.com/Maxsak-dev/stoac/raw/main/stoac.zsh"
+FILE_URL="https://github.com/Maxsak-dev/stoac/raw/main/zsh/stoac.zsh"
 DEST_FILE="$CONFIG_DIR/stoac.zsh"
 
 echo "Downloading zsh file from GitHub..."
