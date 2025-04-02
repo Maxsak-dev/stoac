@@ -9,7 +9,7 @@ stoac_widget() {
   RBUFFER=""
   zle reset-prompt
 
-  output=$($program -l "$user_input" -p)
+  output=$(stoac -l "$user_input" -p)
 
   # Check the exit status of the command
   if [[ $? -ne 0 ]]; then

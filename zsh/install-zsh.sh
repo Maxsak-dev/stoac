@@ -50,7 +50,7 @@ fi
 
 # Add the line to the .zshrc file
 ZSHRC_FILE="$HOME/.zshrc"
-if ! grep -q "echo hello" "$ZSHRC_FILE"; then
+if ! grep -q "source '$DEST_FILE'" "$ZSHRC_FILE"; then
     echo "Adding reference to $ZSHRC_FILE..."
     echo "source '$DEST_FILE'" >> "$ZSHRC_FILE"
 else
