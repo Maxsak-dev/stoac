@@ -8,6 +8,17 @@ After you build your database you can simply execute your templates with the loa
 The recommended way of using stoac is by utilizing the zsh integration provided. 
 Intergration into other shells is currently on the bucket list. 
 
+# Usage
+
+Using stoacs zsh integration is straightforward. 
+Just type the tag of your stored command into the shell and then activate the zsh plugin by hitting Ctrl+h. 
+Stoac will then automatically fill your input with your stored command and you can edit and execute it. 
+A simple example is visible in the following video. 
+
+![zsh Usage Gif](demo/zsh.gif)
+
+For more details on how to use stoac itself refer to [this section](#stoac-program-usage) or type stoac -h in your command line. 
+
 # Installation
 
 ## zsh integration
